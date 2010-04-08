@@ -1,97 +1,80 @@
 <?php
 
+
+
+// CONFIG
+define('FILE_NAME',array_pop(explode('/',$_SERVER['SCRIPT_NAME'])));
+define('IMAGE_DIR',dirname(__FILE__).'/images/');
+define('IMAGE_URL','http://'.$_SERVER['SERVER_NAME'].str_replace(FILE_NAME,null,$_SERVER['SCRIPT_NAME']).'images/');
+define('THUMB_DIR',dirname(__FILE__).'/thumbs/');
+define('THUMB_URL','http://'.$_SERVER['SERVER_NAME'].str_replace(FILE_NAME,null,$_SERVER['SCRIPT_NAME']).'thumbs/');
+define('FILE_URL','http://'.$_SERVER['SERVER_NAME'].$_SERVER['SCRIPT_NAME']);
+define('TITLE','Ojo Photo Gallery');
+
+// END CONFIG
+
+@mkdir(THUMB_DIR);
+
 function getTitleFromFileName($filename){
 	return ucwords(strtolower(str_replace('_',' ',array_shift(explode('.',$filename)))));
 }
 
 function thumbnail($inputFileName, $outputFileName, $maxSize = 100){
-        $info = getimagesize($inputFileName);
-
-        $type = isset($info['type']) ? $info['type'] : $info[2];
-
-        // Check support of file type
-        if ( !(imagetypes() & $type) )
-        {
-            // Server does not support file type
-            return false;
-        }
-
-        $width  = isset($info['width'])  ? $info['width']  : $info[0];
-        $height = isset($info['height']) ? $info['height'] : $info[1];
-
-        // Calculate aspect ratio
-        $wRatio = $maxSize / $width;
-        $hRatio = $maxSize / $height;
-
-        // Using imagecreatefromstring will automatically detect the file type
-        $sourceImage = imagecreatefromstring(file_get_contents($inputFileName));
-
-        // Calculate a proportional width and height no larger than the max size.
-        if ( ($width <= $maxSize) && ($height <= $maxSize) )
-        {
-            // Input is smaller than thumbnail, do nothing
-            return $sourceImage;
-        }
-        elseif ( ($wRatio * $height) < $maxSize )
-        {
-            // Image is horizontal
-            $tHeight = ceil($wRatio * $height);
-            $tWidth  = $maxSize;
-        }
-        else
-        {
-            // Image is vertical
-            $tWidth  = ceil($hRatio * $width);
-            $tHeight = $maxSize;
-        }
-
-        $thumb = imagecreatetruecolor($tWidth, $tHeight);
-
-        if ( $sourceImage === false )
-        {
-            // Could not load image
-            return false;
-        }
-
-        // Copy resampled makes a smooth thumbnail
-        imagecopyresampled($thumb, $sourceImage, 0, 0, 0, 0, $tWidth, $tHeight, $width, $height);
-        imagedestroy($sourceImage);
-
-        $ext = strtolower(substr($outputFileName, strrpos($outputFileName, '.')));
-
-        switch ( $ext )
-        {
-            case '.gif':
-                imagegif($thumb, $outputFileName);
-                break;
-            case '.jpg':
-            case '.jpeg':
-                imagejpeg($thumb, $outputFileName, 80);
-                break;
-            case '.png':
-                imagepng($thumb, $outputFileName);
-                break;
-            case '.bmp':
-                imagewbmp($thumb, $outputFileName);
-                break;
-            default:
-                return false;
-        }
-
-
-        return true;
-    }
+	$info = getimagesize($inputFileName);
+	$type = isset($info['type']) ? $info['type'] : $info[2];
+	if (!(imagetypes() & $type)){
+		return false;
+	}
+	$width  = isset($info['width'])  ? $info['width']  : $info[0];
+	$height = isset($info['height']) ? $info['height'] : $info[1];
+	$wRatio = $maxSize / $width;
+	$hRatio = $maxSize / $height;
+	$sourceImage = imagecreatefromstring(file_get_contents($inputFileName));
+	if (($width <= $maxSize) && ($height <= $maxSize)){
+		return $sourceImage;
+	} elseif (($wRatio * $height) < $maxSize){
+		$tHeight = ceil($wRatio * $height);
+		$tWidth  = $maxSize;
+	} else {
+		$tWidth  = ceil($hRatio * $width);
+		$tHeight = $maxSize;
+	}
+	$thumb = imagecreatetruecolor($tWidth, $tHeight);
+	if ($sourceImage === false){
+		return false;
+	}
+	imagecopyresampled($thumb, $sourceImage, 0, 0, 0, 0, $tWidth, $tHeight, $width, $height);
+	imagedestroy($sourceImage);
+	$ext = strtolower(substr($outputFileName, strrpos($outputFileName, '.')));
+	switch ($ext){
+		case '.gif':
+			imagegif($thumb, $outputFileName);
+			break;
+		case '.jpg':
+		case '.jpeg':
+			imagejpeg($thumb, $outputFileName, 80);
+			break;
+		case '.png':
+			imagepng($thumb, $outputFileName);
+			break;
+		case '.bmp':
+			imagewbmp($thumb, $outputFileName);
+			break;
+		default:
+			return false;
+		}
+	return true;
+}
 
 $files = array();
 
-$myDirectory = opendir("images");
+$myDirectory = opendir(IMAGE_DIR);
 while($entryName = readdir($myDirectory)) {
 	if($entryName != '.' && $entryName != '..'){
-	$files[filemtime('images/'.$entryName)] = $entryName;
-#	echo filemtime('images/'.$entryName);
-	if(!is_file('thumbs/'.$entryName)){
-		thumbnail('images/'.$entryName, 'thumbs/'.$entryName ,140);
-	}
+		$files[filemtime(IMAGE_DIR.$entryName)] = $entryName;
+		if(!is_file(THUMB_DIR.$entryName)){
+			thumbnail(IMAGE_DIR.$entryName, THUMB_DIR.$entryName ,140);
+		}
 	}
 }
 closedir($myDirectory);
@@ -106,18 +89,19 @@ if($_REQUEST['mode'] == 'rss'){
 ?>
 <rss version="2.0">
   <channel>
-    <title>Ojo</title>
-    <link>http://www.davidmacvicar.com/personal/</link>
+    <title><?php echo TITLE; ?></title>
+    <link><?php echo FILE_URL; ?></link>
     <description>Photos</description>
 <?php
 
 foreach($files as $time=>$filename){
 ?>
-    <item>
-       <title><?php echo getTitleFromFileName($filename); ?></title>
-       <link>http://www.davidmacvicar.com/personal/index.php?individual=true&filename=<?php echo $filename; ?></link>
-       <description><?php echo getTitleFromFileName($filename); ?></description>
-    </item>
+	<item>
+		<title><?php echo getTitleFromFileName($filename); ?></title>
+		<link><?php echo FILE_URL; ?>?individual=true&amp;filename=<?php echo $filename; ?></link>
+		<description><?php echo getTitleFromFileName($filename); ?><br /><img src="<?php echo IMAGE_URL.$filename; ?>" /></description>
+		<pubDate><?php echo date("D, d M Y H:i:s T",$time); ?></pubDate>
+	</item>
 <?php
 }
 ?>
@@ -131,9 +115,9 @@ foreach($files as $time=>$filename){
 ?><!doctype html>
 <html>
 <head>
-<title>Ojo</title>
+<title><?php echo TITLE; ?></title>
 <link rel="alternate" type="application/rss+xml" title="RSS Feed for Ojo" 
-  href="http://www.davidmacvicar.com/personal/index.php?mode=rss" />
+  href="<?php echo FILE_URL; ?>?mode=rss" />
 <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.4.2/jquery.min.js"></script>
 <script src="http://github.com/krewenki/jquery-lightbox/raw/master/jquery.lightbox.js"></script>
 <link rel="stylesheet" type="text/css" href="http://github.com/krewenki/jquery-lightbox/raw/master/css/lightbox.css" />
@@ -168,6 +152,7 @@ $(document).ready(function(){
 <body>
 
 <div class="container">
+
 <?php
 
 
