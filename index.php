@@ -82,11 +82,58 @@ function thumbnail($inputFileName, $outputFileName, $maxSize = 100){
         return true;
     }
 
+$files = array();
+
+$myDirectory = opendir("images");
+while($entryName = readdir($myDirectory)) {
+	if($entryName != '.' && $entryName != '..'){
+	$files[filemtime('images/'.$entryName)] = $entryName;
+#	echo filemtime('images/'.$entryName);
+	if(!is_file('thumbs/'.$entryName)){
+		thumbnail('images/'.$entryName, 'thumbs/'.$entryName ,140);
+	}
+	}
+}
+closedir($myDirectory);
+
+ksort($files);
+$files = array_reverse($files,true);
+
+
+if($_REQUEST['mode'] == 'rss'){
+	header('Content-type: application/rss');
+	echo "<?xml version=\"1.0\"?>\n";
+?>
+<rss version="2.0">
+  <channel>
+    <title>Ojo</title>
+    <link>http://www.davidmacvicar.com/personal/</link>
+    <description>Photos</description>
+<?php
+
+foreach($files as $time=>$filename){
+?>
+    <item>
+       <title><?php echo getTitleFromFileName($filename); ?></title>
+       <link>http://www.davidmacvicar.com/personal/index.php?individual=true&filename=<?php echo $filename; ?></link>
+       <description><?php echo getTitleFromFileName($filename); ?></description>
+    </item>
+<?php
+}
+?>
+  </channel>
+</rss>
+<?php
+	exit();
+}
+
 
 ?><!doctype html>
 <html>
 <head>
 <title>Ojo</title>
+<link rel="alternate" type="application/rss+xml" title="RSS Feed for Ojo" 
+  href="http://www.davidmacvicar.com/personal/index.php?mode=rss" />
 <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.4.2/jquery.min.js"></script>
 <script src="http://github.com/krewenki/jquery-lightbox/raw/master/jquery.lightbox.js"></script>
 <link rel="stylesheet" type="text/css" href="http://github.com/krewenki/jquery-lightbox/raw/master/css/lightbox.css" />
@@ -123,18 +170,18 @@ $(document).ready(function(){
 <div class="container">
 <?php
 
-$myDirectory = opendir("images");
-while($entryName = readdir($myDirectory)) {
-	if($entryName != '.' && $entryName != '..'){
-	if(!is_file('thumbs/'.$entryName)){
-		thumbnail('images/'.$entryName, 'thumbs/'.$entryName ,140);
-	}
+
+if($_REQUEST['individual'] == 'true' && isset($_REQUEST['filename'])){
+?>
+	<img src="images/<?php echo $_REQUEST['filename']; ?>" />
+<?php
+} else {
+	foreach($files as $key=>$entryName){
 ?>
 	<a href="images/<?php echo $entryName;?>" class="lightbox thumblink" title="<?php echo getTitleFromFileName($entryName); ?>"><img src="thumbs/<?php echo $entryName; ?>" class="thumb" title="<?php echo getTitleFromFileName($entryName); ?>" /></a>
 <?php
 	}
 }
-closedir($myDirectory);
 ?>
 </div>
 </body>
